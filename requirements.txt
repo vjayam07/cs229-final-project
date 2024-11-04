@@ -1,4 +1,9 @@
 torch
 numpy
+pillow
+matplotlib
+
 huggingface_hub
+transformers
+
 wandb
