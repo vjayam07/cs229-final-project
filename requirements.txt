@@ -5,5 +5,7 @@ matplotlib
 
 huggingface_hub
 transformers
+clip
 
 wandb
+tqdm
