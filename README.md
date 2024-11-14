@@ -1,1 +1,2 @@
-# cs229-final-project
+# Playing Geoguessr with Deep Learning Models
+## By Viraj Jayam and Kapil Dheeriya
