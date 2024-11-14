@@ -1,3 +1,9 @@
+"""
+Data loader class for the IMG2GPS(3K) datasets. 
+
+# ! Needs more work to be done. As of 11-13, we are working with Google Streetview Images.
+"""
+
 import json
 import clip
 from PIL import Image
