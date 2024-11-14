@@ -1,2 +1,1 @@
-# Playing Geoguessr with Deep Learning Models
-## By Viraj Jayam and Kapil Dheeriya
+# Playing Geoguessr with Deep Learning Models, by Viraj Jayam and Kapil Dheeriya
