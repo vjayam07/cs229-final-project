@@ -34,3 +34,23 @@ def main():
 
 if __name__=='__main__':
     main()
+
+
+
+# ! Notes
+"""
+1) Code for text embeddings from CLIP
+inputs = tokenizer(["a photo of a cat", "a photo of a dog"], padding=True, return_tensors="pt")
+
+outputs = model(**inputs)
+text_embeds = outputs.text_embeds
+
+2) SAM ViT embeddings
+https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth
+pretrained weights for SAM ViT model^
+
+3) Kapil will work on writing code for MLP and I will work on CLIP training and self attention.
+Both on training loop
+
+Kapil also work on the data processing loop.
+"""
