@@ -9,3 +9,8 @@ clip
 
 wandb
 tqdm
+
+Pillow
+pyshp>=2
+geopy
+osmnx
