@@ -189,10 +189,11 @@ if __name__ == "__main__":
         "San Marino", "Denmark", "United States", "Canada", "France", "Germany", "Russia"
     ]
     countries_with_street_view_coverage = [
-        # Africa
-        "Botswana", "Ghana", "Kenya", "Lesotho", "Madagascar", "Nigeria", "Rwanda", "Senegal", "South Africa", "Uganda",
-        # Asia
-        "Bangladesh", "Hong Kong", "India", "Indonesia", "Israel", "Japan", "Jordan", "Laos", "Macau", "Malaysia",
+        # # Africa
+        # "Botswana", "Ghana", "Kenya", "Lesotho", "Madagascar", "Nigeria", "Rwanda", "Senegal", "South Africa", "Uganda",
+        # # Asia
+        # "Bangladesh", "Hong Kong", "India", 
+        "Indonesia", "Israel", "Japan", "Jordan", "Laos", "Macau", "Malaysia",
         "Mongolia", "Nepal", "Philippines", "Singapore", "South Korea", "Sri Lanka", "Taiwan", "Thailand", "Vietnam",
         # Europe
         "Albania", "Andorra", "Austria", "Belarus", "Belgium", "Bosnia and Herzegovina", "Bulgaria", "Croatia", "Cyprus",
