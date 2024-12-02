@@ -1,5 +1,6 @@
 import os
 import osmnx as ox
+ox.settings.use_cache = False
 import geopandas as gpd
 from shapely.geometry import box
 from random import sample
