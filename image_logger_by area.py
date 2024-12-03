@@ -139,27 +139,27 @@ def process_country(country_name, tile_size_km=50, sample_size_per_tile=20, area
             # Generate all potential tiles for the country
             tiles = generate_tiles(country_polygon, tile_size_km)
 
-            # Randomly select tiles until we find n_tiles with road networks
+            # Parallelize the validation of tiles and road network extraction
             valid_tiles = []
-            attempts = 0
-            while len(valid_tiles) < n_tiles and attempts < len(tiles):
-                # Select a random tile
-                tile = sample(tiles, 1)[0]
-                tiles.remove(tile)  # Avoid rechecking the same tile
-
-                try:
-                    # Query the road network for the tile
-                    G = ox.graph_from_polygon(tile, network_type="drive")
-                    if G and len(G.edges) > 0:
-                        valid_tiles.append((tile, G))  # Store both tile and graph
-                except Exception as e:
-                    print(f"Skipping tile: {e}")
-                attempts += 1
+            with ThreadPoolExecutor(max_workers=4) as validation_executor:
+                future_to_tile = {
+                    validation_executor.submit(validate_tile_and_extract_network, tile): tile
+                    for tile in sample(tiles, min(len(tiles), n_tiles * 2))  # Sample a larger subset for better coverage
+                }
+                for future in as_completed(future_to_tile):
+                    try:
+                        result = future.result()
+                        if result:
+                            valid_tiles.append(result)  # Append (tile, graph)
+                            if len(valid_tiles) >= n_tiles:
+                                break  # Stop once we have enough valid tiles
+                    except Exception as e:
+                        print(f"Tile validation error: {e}")
 
             # Process valid tiles
-            with ThreadPoolExecutor(max_workers=4) as executor:
+            with ThreadPoolExecutor(max_workers=4) as processing_executor:
                 future_to_tile = {
-                    executor.submit(process_tile, G, tile, country_name, sample_size_per_tile): (tile, G)
+                    processing_executor.submit(process_tile, G, tile, country_name, sample_size_per_tile): (tile, G)
                     for tile, G in valid_tiles
                 }
                 for future in as_completed(future_to_tile):
@@ -170,6 +170,25 @@ def process_country(country_name, tile_size_km=50, sample_size_per_tile=20, area
     except Exception as e:
         print(f"Error processing country {country_name}: {e}")
         return []
+
+def validate_tile_and_extract_network(tile):
+    """
+    Validate a tile and extract its road network if valid.
+
+    Parameters:
+        tile (Polygon): The tile geometry.
+
+    Returns:
+        tuple: (tile, graph) if the tile is valid, None otherwise.
+    """
+    try:
+        # Query the road network for the tile
+        G = ox.graph_from_polygon(tile, network_type="drive")
+        if G and len(G.edges) > 0:
+            return (tile, G)  # Return the tile and its graph
+    except Exception as e:
+        print(f"Error validating tile: {e}")
+    return None
 
 def save_metadata(metadata, output_csv="global_street_view_metadata.csv"):
     """
@@ -201,8 +220,9 @@ if __name__ == "__main__":
         # "Estonia", "Faroe Islands", "Finland", "France", "Germany", 
         # "Greece", "Hungary",
         # "Iceland", "Ireland", 
-        "Italy", "Kosovo", "Latvia", "Liechtenstein", "Lithuania", "Luxembourg", "Malta", "Moldova",
-        "Monaco", "Montenegro", "Netherlands", "North Macedonia", "Norway", "Poland", "Portugal", "Romania", "Russia",
+        # "Italy", "Kosovo", "Latvia", "Liechtenstein", "Lithuania", "Luxembourg", "Malta", "Moldova",
+        # "Monaco", "Montenegro", 
+        "Netherlands", "North Macedonia", "Norway", "Poland", "Portugal", "Romania", "Russia",
         "San Marino", "Serbia", "Slovakia", "Slovenia", "Spain", "Sweden", "Switzerland", "Ukraine", "United Kingdom",
         "Vatican City",
         # North America
