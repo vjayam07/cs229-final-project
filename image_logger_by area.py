@@ -193,11 +193,12 @@ if __name__ == "__main__":
         # "Botswana", "Ghana", "Kenya", "Lesotho", "Madagascar", "Nigeria", "Rwanda", "Senegal", "South Africa", "Uganda",
         # # Asia
         # "Bangladesh", "Hong Kong", "India", 
-        "Indonesia", "Israel", "Japan", "Jordan", "Laos", "Macau", "Malaysia",
-        "Mongolia", "Nepal", "Philippines", "Singapore", "South Korea", "Sri Lanka", "Taiwan", "Thailand", "Vietnam",
-        # Europe
-        "Albania", "Andorra", "Austria", "Belarus", "Belgium", "Bosnia and Herzegovina", "Bulgaria", "Croatia", "Cyprus",
-        "Czech Republic", "Denmark", "Estonia", "Faroe Islands", "Finland", "France", "Germany", "Greece", "Hungary",
+        # "Indonesia", "Israel", "Japan", "Jordan", "Laos", "Macau", "Malaysia",
+        # "Mongolia", "Nepal", "Philippines", "Singapore", "South Korea", "Sri Lanka", "Taiwan", "Thailand", "Vietnam",
+        # # Europe
+        # "Albania", "Andorra", "Austria", "Belarus", "Belgium", "Bosnia and Herzegovina", "Bulgaria", "Croatia", "Cyprus",
+        # "Czech Republic", "Denmark", 
+        "Estonia", "Faroe Islands", "Finland", "France", "Germany", "Greece", "Hungary",
         "Iceland", "Ireland", "Italy", "Kosovo", "Latvia", "Liechtenstein", "Lithuania", "Luxembourg", "Malta", "Moldova",
         "Monaco", "Montenegro", "Netherlands", "North Macedonia", "Norway", "Poland", "Portugal", "Romania", "Russia",
         "San Marino", "Serbia", "Slovakia", "Slovenia", "Spain", "Sweden", "Switzerland", "Ukraine", "United Kingdom",
@@ -220,8 +221,8 @@ if __name__ == "__main__":
         metadata = process_country(
             country_name=country,
             tile_size_km=50,
-            sample_size_per_tile=20,
+            sample_size_per_tile=5,
             area_threshold_km2=50000,  # Adjust threshold as needed
-            tiles_per_km2=0.00002       # Adjust scaling factor as needed
+            tiles_per_km2=0.0001       # Adjust scaling factor as needed
         )
         save_metadata(metadata)
