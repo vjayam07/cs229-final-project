@@ -198,7 +198,8 @@ if __name__ == "__main__":
         # # Europe
         # "Albania", "Andorra", "Austria", "Belarus", "Belgium", "Bosnia and Herzegovina", "Bulgaria", "Croatia", "Cyprus",
         # "Czech Republic", "Denmark", 
-        "Estonia", "Faroe Islands", "Finland", "France", "Germany", "Greece", "Hungary",
+        # "Estonia", "Faroe Islands", "Finland", "France", "Germany", 
+        "Greece", "Hungary",
         "Iceland", "Ireland", "Italy", "Kosovo", "Latvia", "Liechtenstein", "Lithuania", "Luxembourg", "Malta", "Moldova",
         "Monaco", "Montenegro", "Netherlands", "North Macedonia", "Norway", "Poland", "Portugal", "Romania", "Russia",
         "San Marino", "Serbia", "Slovakia", "Slovenia", "Spain", "Sweden", "Switzerland", "Ukraine", "United Kingdom",
