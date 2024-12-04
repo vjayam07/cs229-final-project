@@ -238,20 +238,9 @@ def process_tile(G, tile, country_name, sample_size_per_tile):
 #         print(f"Error processing country {country_name}: {e}")
 #         return []
 
-# Define a helper function to query and process each tile
-def process_single_tile(tile):
-    try:
-        G = ox.graph_from_polygon(tile, network_type="drive")
-        if G and len(G.edges) > 0:
-            tile_metadata = process_tile(G, tile, country_name, sample_size_per_tile)
-            save_metadata(tile_metadata)
-            return True
-    except Exception as e:
-        print(f"Skipping tile {attempts}: {e}.")
-    finally:
-        del G
-        collect()
-    return False
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from random import sample
+
 
 def process_country(country_name, tile_size_km=50, sample_size_per_tile=20, area_threshold_km2=50000, tiles_per_km2=0.0001):
     """
@@ -282,6 +271,21 @@ def process_country(country_name, tile_size_km=50, sample_size_per_tile=20, area
             print(f"{country_name} is a large country. Sampling {n_tiles} tiles.")
             tiles = generate_tiles(country_polygon, tile_size_km)
 
+            # Define a helper function to query and process each tile
+            def process_single_tile(tile):
+                try:
+                    G = ox.graph_from_polygon(tile, network_type="drive")
+                    if G and len(G.edges) > 0:
+                        tile_metadata = process_tile(G, tile, country_name, sample_size_per_tile)
+                        save_metadata(tile_metadata)
+                        return True
+                except Exception as e:
+                    print(f"Skipping tile {attempts}: {e}.")
+                finally:
+                    del G
+                    collect()
+                return False
+
             # Parallelize tile querying and processing
             processed_tiles = 0
             attempts = 0
@@ -302,8 +306,10 @@ def process_country(country_name, tile_size_km=50, sample_size_per_tile=20, area
             print(f"Processed {processed_tiles}/{n_tiles} tiles for {country_name}.")
 
         print(f"Finished processing {country_name}.")
+        return
     except Exception as e:
         print(f"Error processing country {country_name}: {e}")
+        return
 
 
 def save_metadata(metadata, output_csv="global_street_view_metadata.csv"):
@@ -366,11 +372,11 @@ if __name__ == "__main__":
 
     # Process each country
     for country in countries_with_street_view_coverage:
-        metadata = process_country(
+        process_country(
             country_name=country,
             tile_size_km=50,
             sample_size_per_tile=5,
             area_threshold_km2=10000,  # Adjust threshold as needed
             tiles_per_km2=0.0001       # Adjust scaling factor as needed
         )
-        save_metadata(metadata)
+        #save_metadata(metadata)
