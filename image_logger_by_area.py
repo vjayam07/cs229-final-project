@@ -3,10 +3,12 @@ import osmnx as ox
 ox.settings.use_cache = False
 import geopandas as gpd
 from shapely.geometry import box
+import random
 from random import sample
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from gc import collect
+import threading
 
 # Output directory for images
 OUTPUT_DIR = "global_street_view_images"
@@ -270,38 +272,81 @@ def process_country(country_name, tile_size_km=50, sample_size_per_tile=20, area
             n_tiles = int(country_area * tiles_per_km2)
             print(f"{country_name} is a large country. Sampling {n_tiles} tiles.")
             tiles = generate_tiles(country_polygon, tile_size_km)
+            random.shuffle(tiles)
 
-            # Define a helper function to query and process each tile
+            # # Define a helper function to query and process each tile
+            # def process_single_tile(tile):
+            #     try:
+            #         G = ox.graph_from_polygon(tile, network_type="drive")
+            #         if G and len(G.edges) > 0:
+            #             tile_metadata = process_tile(G, tile, country_name, sample_size_per_tile)
+            #             save_metadata(tile_metadata)
+            #             return True
+            #     except Exception as e:
+            #         print(f"Skipping tile {attempts}: {e}.")
+            #     finally:
+            #         del G
+            #         collect()
+            #     return False
+
+            # # Parallelize tile querying and processing
+            # processed_tiles = 0
+            # attempts = 0
+            # with ThreadPoolExecutor(max_workers=4) as executor:
+            #     futures = {
+            #         executor.submit(process_single_tile, sample(tiles, 1)[0]): i
+            #         for i in range(len(tiles))
+            #     }
+
+            #     for future in as_completed(futures):
+            #         result = future.result()
+            #         if result:
+            #             processed_tiles += 1
+            #         if processed_tiles % 50 == 0: print(f'Saved {processed_tiles} tiles.')
+            #         if processed_tiles >= n_tiles:
+            #             break  # Stop when enough tiles are processed
+
+
+            processed_tiles = 0
+            attempts = 0
+            lock = threading.Lock()  # Lock to manage processed_tiles safely
+            futures = []
+
+            # Define a shared function to query and process tiles
             def process_single_tile(tile):
+                nonlocal processed_tiles
+                if processed_tiles >= n_tiles:
+                    return False  # Stop if we've already processed enough tiles
                 try:
                     G = ox.graph_from_polygon(tile, network_type="drive")
                     if G and len(G.edges) > 0:
+                        # Process the tile and save metadata
                         tile_metadata = process_tile(G, tile, country_name, sample_size_per_tile)
                         save_metadata(tile_metadata)
+                        del G
+                        collect()
+                        with lock:
+                            processed_tiles += 1  # Update the counter safely
                         return True
                 except Exception as e:
-                    print(f"Skipping tile {attempts}: {e}.")
-                finally:
-                    del G
-                    collect()
+                    print(f"Error processing tile: {e}")
                 return False
 
-            # Parallelize tile querying and processing
-            processed_tiles = 0
-            attempts = 0
+            # Submit tasks to the ThreadPoolExecutor
             with ThreadPoolExecutor(max_workers=4) as executor:
-                futures = {
-                    executor.submit(process_single_tile, sample(tiles, 1)[0]): i
-                    for i in range(len(tiles))
-                }
-
-                for future in as_completed(futures):
-                    result = future.result()
-                    if result:
-                        processed_tiles += 1
-                    if processed_tiles % 50 == 0: print(f'Saved {processed_tiles} tiles.')
+                for tile in tiles:
                     if processed_tiles >= n_tiles:
-                        break  # Stop when enough tiles are processed
+                        break
+                    futures.append(executor.submit(process_single_tile, tile))
+
+                # Wait for futures and cancel unnecessary ones
+                for future in as_completed(futures):
+                    if processed_tiles >= n_tiles:
+                        # Cancel remaining futures that haven't started
+                        for f in futures:
+                            if not f.done():
+                                f.cancel()
+                        break
 
             print(f"Processed {processed_tiles}/{n_tiles} tiles for {country_name}.")
 
@@ -346,7 +391,7 @@ if __name__ == "__main__":
         # "Monaco", "Montenegro", 
         # "Netherlands", "North Macedonia", "Norway", "Poland", "Portugal", "Romania", "Russia",
         # "San Marino", "Serbia", "Slovakia", 
-        "Slovenia", 
+        #"Slovenia", 
         # "Spain", 
         # "Sweden", 
         "Switzerland", 
