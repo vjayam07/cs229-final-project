@@ -6,6 +6,7 @@ from shapely.geometry import box
 from random import sample
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from gc import collect
 
 # Output directory for images
 OUTPUT_DIR = "global_street_view_images"
@@ -171,9 +172,90 @@ def process_tile(G, tile, country_name, sample_size_per_tile):
 #         print(f"Error processing country {country_name}: {e}")
 #         return []
 
+# def process_country(country_name, tile_size_km=50, sample_size_per_tile=20, area_threshold_km2=50000, tiles_per_km2=0.0001):
+#     """
+#     Process a country, handling small/medium countries without tiling.
+#     """
+#     print(f"Processing {country_name}...")
+#     try:
+#         # Geocode the country to get its polygon
+#         country_gdf = ox.geocoder.geocode_to_gdf(country_name)
+#         country_polygon = country_gdf.geometry.iloc[0]
+
+#         # Calculate the area of the country in square kilometers
+#         country_area = calculate_country_area(country_polygon)
+#         print(f"{country_name} area: {country_area:.2f} km²")
+
+#         metadata = []
+
+#         if country_area <= area_threshold_km2:
+#             # Small/Medium Country: Process the entire country polygon
+#             print(f"{country_name} is a small/medium country. Processing without tiling.")
+
+#             # Query the road network for the entire country
+#             G = ox.graph_from_polygon(country_polygon, network_type="drive")
+#             if G and len(G.edges) > 0:
+#                 metadata.extend(process_tile(G, country_polygon, country_name, sample_size_per_tile))
+#             else:
+#                 print(f"No roads found in {country_name}.")
+#         else:
+#             # Large Country: Use proportional tiling
+#             n_tiles = int(country_area * tiles_per_km2)
+#             print(f"{country_name} is a large country. Sampling {n_tiles} tiles.")
+
+#             # Generate all potential tiles for the country
+#             tiles = generate_tiles(country_polygon, tile_size_km)
+
+#             # Randomly select tiles until we find n_tiles with road networks
+#             processed_tiles = 0
+#             attempts = 0
+#             while processed_tiles < n_tiles and attempts < len(tiles):
+#                 # Select a random tile
+#                 tile = sample(tiles, 1)[0]
+#                 tiles.remove(tile)  # Avoid rechecking the same tile
+
+#                 try:
+#                     # Query the road network for the tile
+#                     G = ox.graph_from_polygon(tile, network_type="drive")
+#                     if G and len(G.edges) > 0:
+#                         # Process the tile immediately
+#                         tile_metadata = process_tile(G, tile, country_name, sample_size_per_tile)
+#                         metadata.extend(tile_metadata)
+
+#                         # Clear the graph from memory
+#                         del G
+#                         import gc
+#                         gc.collect()
+
+#                         processed_tiles += 1
+#                 except Exception as e:
+#                     print(f"Skipping tile: {e}, have attempted {attempts} tiles.")
+#                 attempts += 1
+
+#         print(f"Finished processing {country_name}.")
+#         return metadata
+#     except Exception as e:
+#         print(f"Error processing country {country_name}: {e}")
+#         return []
+
+# Define a helper function to query and process each tile
+def process_single_tile(tile):
+    try:
+        G = ox.graph_from_polygon(tile, network_type="drive")
+        if G and len(G.edges) > 0:
+            tile_metadata = process_tile(G, tile, country_name, sample_size_per_tile)
+            save_metadata(tile_metadata)
+            return True
+    except Exception as e:
+        print(f"Skipping tile {attempts}: {e}.")
+    finally:
+        del G
+        collect()
+    return False
+
 def process_country(country_name, tile_size_km=50, sample_size_per_tile=20, area_threshold_km2=50000, tiles_per_km2=0.0001):
     """
-    Process a country, handling small/medium countries without tiling.
+    Process a country, handling small/medium countries without tiling. Parallel process large countries
     """
     print(f"Processing {country_name}...")
     try:
@@ -185,57 +267,43 @@ def process_country(country_name, tile_size_km=50, sample_size_per_tile=20, area
         country_area = calculate_country_area(country_polygon)
         print(f"{country_name} area: {country_area:.2f} km²")
 
-        metadata = []
-
         if country_area <= area_threshold_km2:
-            # Small/Medium Country: Process the entire country polygon
+            # Process small/medium countries without tiling
             print(f"{country_name} is a small/medium country. Processing without tiling.")
-
-            # Query the road network for the entire country
             G = ox.graph_from_polygon(country_polygon, network_type="drive")
             if G and len(G.edges) > 0:
-                metadata.extend(process_tile(G, country_polygon, country_name, sample_size_per_tile))
+                tile_metadata = process_tile(G, country_polygon, country_name, sample_size_per_tile)
+                save_metadata(tile_metadata)
             else:
                 print(f"No roads found in {country_name}.")
         else:
-            # Large Country: Use proportional tiling
+            # Process large countries with tiling
             n_tiles = int(country_area * tiles_per_km2)
             print(f"{country_name} is a large country. Sampling {n_tiles} tiles.")
-
-            # Generate all potential tiles for the country
             tiles = generate_tiles(country_polygon, tile_size_km)
 
-            # Randomly select tiles until we find n_tiles with road networks
+            # Parallelize tile querying and processing
             processed_tiles = 0
             attempts = 0
-            while processed_tiles < n_tiles and attempts < len(tiles):
-                # Select a random tile
-                tile = sample(tiles, 1)[0]
-                tiles.remove(tile)  # Avoid rechecking the same tile
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                futures = {
+                    executor.submit(process_single_tile, sample(tiles, 1)[0]): i
+                    for i in range(len(tiles))
+                }
 
-                try:
-                    # Query the road network for the tile
-                    G = ox.graph_from_polygon(tile, network_type="drive")
-                    if G and len(G.edges) > 0:
-                        # Process the tile immediately
-                        tile_metadata = process_tile(G, tile, country_name, sample_size_per_tile)
-                        metadata.extend(tile_metadata)
-
-                        # Clear the graph from memory
-                        del G
-                        import gc
-                        gc.collect()
-
+                for future in as_completed(futures):
+                    result = future.result()
+                    if result:
                         processed_tiles += 1
-                except Exception as e:
-                    print(f"Skipping tile: {e}, have attempted {attempts} tiles.")
-                attempts += 1
+                    if processed_tiles % 50 == 0: print(f'Saved {processed_tiles} tiles.')
+                    if processed_tiles >= n_tiles:
+                        break  # Stop when enough tiles are processed
+
+            print(f"Processed {processed_tiles}/{n_tiles} tiles for {country_name}.")
 
         print(f"Finished processing {country_name}.")
-        return metadata
     except Exception as e:
         print(f"Error processing country {country_name}: {e}")
-        return []
 
 
 def save_metadata(metadata, output_csv="global_street_view_metadata.csv"):
@@ -272,13 +340,20 @@ if __name__ == "__main__":
         # "Monaco", "Montenegro", 
         # "Netherlands", "North Macedonia", "Norway", "Poland", "Portugal", "Romania", "Russia",
         # "San Marino", "Serbia", "Slovakia", 
-        # "Slovenia", 
-        "Spain", 
-        "Sweden", "Switzerland", "Ukraine", "United Kingdom",
-        "Vatican City",
+        "Slovenia", 
+        # "Spain", 
+        # "Sweden", 
+        "Switzerland", 
+        #"Ukraine", "United Kingdom",
+        # "Vatican City",
         # North America
-        "Anguilla", "Antigua and Barbuda", "Aruba", "Bahamas", "Barbados", "Belize", "Bermuda", "Canada", "Cayman Islands",
-        "Costa Rica", "Curaçao", "Dominica", "Dominican Republic", "El Salvador", "Greenland", "Grenada", "Guadeloupe",
+        # "Anguilla", "Antigua and Barbuda", "Aruba", "Bahamas", "Barbados", "Belize", "Bermuda", 
+        # "Canada", 
+        "Cayman Islands",
+        "Costa Rica", "Curaçao", "Dominica", "Dominican Republic", "El Salvador", 
+        #"Greenland", 
+        "Grenada", 
+        #"Guadeloupe",
         "Guatemala", "Haiti", "Honduras", "Jamaica", "Martinique", "Mexico", "Nicaragua", "Panama", "Puerto Rico",
         "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Sint Maarten", "Trinidad and Tobago",
         "United States", "U.S. Virgin Islands",
