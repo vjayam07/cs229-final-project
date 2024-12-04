@@ -38,7 +38,7 @@ def download_street_view_image(lat, lng, filename):
     if response.status_code == 200:
         with open(filename, "wb") as f:
             f.write(response.content)
-        print(f"Saved image: {filename}")
+#        print(f"Saved image: {filename}")
         return True
     else:
 #        print(f"Failed to fetch image for ({lat}, {lng}): {response.status_code}")
