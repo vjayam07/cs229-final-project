@@ -226,7 +226,7 @@ if __name__ == "__main__":
             country_name=country,
             tile_size_km=50,
             sample_size_per_tile=5,
-            area_threshold_km2=50000,  # Adjust threshold as needed
+            area_threshold_km2=20000,  # Adjust threshold as needed
             tiles_per_km2=0.0001       # Adjust scaling factor as needed
         )
         save_metadata(metadata)
