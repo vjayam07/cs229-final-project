@@ -248,6 +248,7 @@ def process_country(country_name, tile_size_km=50, sample_size_per_tile=20, area
     """
     Process a country, handling small/medium countries without tiling. Parallel process large countries
     """
+    total_num_images = 0
     print(f"Processing {country_name}...")
     try:
         # Geocode the country to get its polygon
@@ -265,6 +266,7 @@ def process_country(country_name, tile_size_km=50, sample_size_per_tile=20, area
             if G and len(G.edges) > 0:
                 tile_metadata = process_tile(G, country_polygon, country_name, sample_size_per_tile)
                 save_metadata(tile_metadata)
+                total_num_images += len(tile_metadata)
             else:
                 print(f"No roads found in {country_name}.")
         else:
@@ -315,6 +317,8 @@ def process_country(country_name, tile_size_km=50, sample_size_per_tile=20, area
             # Define a shared function to query and process tiles
             def process_single_tile(tile):
                 nonlocal processed_tiles
+                nonlocal attempts
+                nonlocal total_num_images
                 if processed_tiles >= n_tiles:
                     return False  # Stop if we've already processed enough tiles
                 try:
@@ -323,13 +327,14 @@ def process_country(country_name, tile_size_km=50, sample_size_per_tile=20, area
                         # Process the tile and save metadata
                         tile_metadata = process_tile(G, tile, country_name, sample_size_per_tile)
                         save_metadata(tile_metadata)
+                        total_num_images += len(tile_metadata)
                         del G
                         collect()
                         with lock:
                             processed_tiles += 1  # Update the counter safely
                         return True
                 except Exception as e:
-                    print(f"Error processing tile: {e}")
+                    print(f"{processed_tiles}/{attempts}; Error processing tile: {e}")
                 return False
 
             # Submit tasks to the ThreadPoolExecutor
@@ -348,9 +353,9 @@ def process_country(country_name, tile_size_km=50, sample_size_per_tile=20, area
                                 f.cancel()
                         break
 
-            print(f"Processed {processed_tiles}/{n_tiles} tiles for {country_name}.")
+            print(f"Processed {processed_tiles}/{n_tiles} tiles for {country_name}")
 
-        print(f"Finished processing {country_name}.")
+        print(f"Finished processing {country_name}. Saved {total_num_images} images.")
         return
     except Exception as e:
         print(f"Error processing country {country_name}: {e}")
@@ -394,18 +399,19 @@ if __name__ == "__main__":
         #"Slovenia", 
         # "Spain", 
         # "Sweden", 
-        "Switzerland", 
+        #"Switzerland", 
         #"Ukraine", "United Kingdom",
         # "Vatican City",
         # North America
         # "Anguilla", "Antigua and Barbuda", "Aruba", "Bahamas", "Barbados", "Belize", "Bermuda", 
         # "Canada", 
-        "Cayman Islands",
-        "Costa Rica", "Curaçao", "Dominica", "Dominican Republic", "El Salvador", 
+        #"Cayman Islands",
+        #"Costa Rica", "Curaçao", "Dominica", "Dominican Republic", "El Salvador", 
         #"Greenland", 
-        "Grenada", 
+        #"Grenada", 
         #"Guadeloupe",
-        "Guatemala", "Haiti", "Honduras", "Jamaica", "Martinique", "Mexico", "Nicaragua", "Panama", "Puerto Rico",
+        #"Guatemala", "Haiti", 
+        "Honduras", "Jamaica", "Martinique", "Mexico", "Nicaragua", "Panama", "Puerto Rico",
         "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Sint Maarten", "Trinidad and Tobago",
         "United States", "U.S. Virgin Islands",
         # Oceania
