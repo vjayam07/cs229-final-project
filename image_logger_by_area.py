@@ -38,7 +38,7 @@ def download_street_view_image(lat, lng, filename):
     if response.status_code == 200:
         with open(filename, "wb") as f:
             f.write(response.content)
-#        print(f"Saved image: {filename}")
+        print(f"Saved image: {filename}")
         return True
     else:
 #        print(f"Failed to fetch image for ({lat}, {lng}): {response.status_code}")
@@ -105,6 +105,72 @@ def process_tile(G, tile, country_name, sample_size_per_tile):
 #        print(f"Error processing tile: {e}")
         return []
 
+# def process_country(country_name, tile_size_km=50, sample_size_per_tile=20, area_threshold_km2=50000, tiles_per_km2=0.0001):
+#     """
+#     Process a country, handling small/medium countries without tiling.
+#     """
+#     print(f"Processing {country_name}...")
+#     try:
+#         # Geocode the country to get its polygon
+#         country_gdf = ox.geocoder.geocode_to_gdf(country_name)
+#         country_polygon = country_gdf.geometry.iloc[0]
+
+#         # Calculate the area of the country in square kilometers
+#         country_area = calculate_country_area(country_polygon)
+#         print(f"{country_name} area: {country_area:.2f} km²")
+
+#         metadata = []
+
+#         if country_area <= area_threshold_km2:
+#             # Small/Medium Country: Process the entire country polygon
+#             print(f"{country_name} is a small/medium country. Processing without tiling.")
+
+#             # Query the road network for the entire country
+#             G = ox.graph_from_polygon(country_polygon, network_type="drive")
+#             if G and len(G.edges) > 0:
+#                 metadata.extend(process_tile(G, country_polygon, country_name, sample_size_per_tile))
+#             else:
+#                 print(f"No roads found in {country_name}.")
+#         else:
+#             # Large Country: Use proportional tiling
+#             n_tiles = int(country_area * tiles_per_km2)
+#             print(f"{country_name} is a large country. Sampling {n_tiles} tiles.")
+
+#             # Generate all potential tiles for the country
+#             tiles = generate_tiles(country_polygon, tile_size_km)
+
+#             # Randomly select tiles until we find n_tiles with road networks
+#             valid_tiles = []
+#             attempts = 0
+#             while len(valid_tiles) < n_tiles and attempts < len(tiles):
+#                 # Select a random tile
+#                 tile = sample(tiles, 1)[0]
+#                 tiles.remove(tile)  # Avoid rechecking the same tile
+
+#                 try:
+#                     # Query the road network for the tile
+#                     G = ox.graph_from_polygon(tile, network_type="drive")
+#                     if G and len(G.edges) > 0:
+#                         valid_tiles.append((tile, G))  # Store both tile and graph
+#                 except Exception as e:
+#                     print(f"Skipping tile: {e}")
+#                 attempts += 1
+
+#             # Process valid tiles
+#             with ThreadPoolExecutor(max_workers=4) as executor:
+#                 future_to_tile = {
+#                     executor.submit(process_tile, G, tile, country_name, sample_size_per_tile): (tile, G)
+#                     for tile, G in valid_tiles
+#                 }
+#                 for future in as_completed(future_to_tile):
+#                     metadata.extend(future.result())
+
+#         print(f"Finished processing {country_name}.")
+#         return metadata
+#     except Exception as e:
+#         print(f"Error processing country {country_name}: {e}")
+#         return []
+
 def process_country(country_name, tile_size_km=50, sample_size_per_tile=20, area_threshold_km2=50000, tiles_per_km2=0.0001):
     """
     Process a country, handling small/medium countries without tiling.
@@ -140,9 +206,9 @@ def process_country(country_name, tile_size_km=50, sample_size_per_tile=20, area
             tiles = generate_tiles(country_polygon, tile_size_km)
 
             # Randomly select tiles until we find n_tiles with road networks
-            valid_tiles = []
+            processed_tiles = 0
             attempts = 0
-            while len(valid_tiles) < n_tiles and attempts < len(tiles):
+            while processed_tiles < n_tiles and attempts < len(tiles):
                 # Select a random tile
                 tile = sample(tiles, 1)[0]
                 tiles.remove(tile)  # Avoid rechecking the same tile
@@ -151,25 +217,26 @@ def process_country(country_name, tile_size_km=50, sample_size_per_tile=20, area
                     # Query the road network for the tile
                     G = ox.graph_from_polygon(tile, network_type="drive")
                     if G and len(G.edges) > 0:
-                        valid_tiles.append((tile, G))  # Store both tile and graph
-                except Exception as e:
-                    print(f"Skipping tile: {e}")
-                attempts += 1
+                        # Process the tile immediately
+                        tile_metadata = process_tile(G, tile, country_name, sample_size_per_tile)
+                        metadata.extend(tile_metadata)
 
-            # Process valid tiles
-            with ThreadPoolExecutor(max_workers=4) as executor:
-                future_to_tile = {
-                    executor.submit(process_tile, G, tile, country_name, sample_size_per_tile): (tile, G)
-                    for tile, G in valid_tiles
-                }
-                for future in as_completed(future_to_tile):
-                    metadata.extend(future.result())
+                        # Clear the graph from memory
+                        del G
+                        import gc
+                        gc.collect()
+
+                        processed_tiles += 1
+                except Exception as e:
+                    print(f"Skipping tile: {e}, have attempted {attempts} tiles.")
+                attempts += 1
 
         print(f"Finished processing {country_name}.")
         return metadata
     except Exception as e:
         print(f"Error processing country {country_name}: {e}")
         return []
+
 
 def save_metadata(metadata, output_csv="global_street_view_metadata.csv"):
     """
@@ -205,7 +272,8 @@ if __name__ == "__main__":
         # "Monaco", "Montenegro", 
         # "Netherlands", "North Macedonia", "Norway", "Poland", "Portugal", "Romania", "Russia",
         # "San Marino", "Serbia", "Slovakia", 
-        "Slovenia", "Spain", "Sweden", "Switzerland", "Ukraine", "United Kingdom",
+        # "Slovenia", "Spain", 
+        "Sweden", "Switzerland", "Ukraine", "United Kingdom",
         "Vatican City",
         # North America
         "Anguilla", "Antigua and Barbuda", "Aruba", "Bahamas", "Barbados", "Belize", "Bermuda", "Canada", "Cayman Islands",
@@ -226,7 +294,7 @@ if __name__ == "__main__":
             country_name=country,
             tile_size_km=50,
             sample_size_per_tile=5,
-            area_threshold_km2=20000,  # Adjust threshold as needed
+            area_threshold_km2=10000,  # Adjust threshold as needed
             tiles_per_km2=0.0001       # Adjust scaling factor as needed
         )
         save_metadata(metadata)
