@@ -38,10 +38,10 @@ def download_street_view_image(lat, lng, filename):
     if response.status_code == 200:
         with open(filename, "wb") as f:
             f.write(response.content)
-        print(f"Saved image: {filename}")
+#        print(f"Saved image: {filename}")
         return True
     else:
-        print(f"Failed to fetch image for ({lat}, {lng}): {response.status_code}")
+#        print(f"Failed to fetch image for ({lat}, {lng}): {response.status_code}")
         return False
 
 def generate_tiles(country_polygon, tile_size_km=50):
@@ -99,10 +99,10 @@ def process_tile(G, tile, country_name, sample_size_per_tile):
                     "longitude": lng,
                     "country": country_name
                 })
-            else: print(f'No street view imagery at {lat, lng}')
+#            else: print(f'No street view imagery at {lat, lng}')
         return metadata
     except Exception as e:
-        print(f"Error processing tile: {e}")
+#        print(f"Error processing tile: {e}")
         return []
 
 def process_country(country_name, tile_size_km=50, sample_size_per_tile=20, area_threshold_km2=50000, tiles_per_km2=0.0001):
@@ -203,8 +203,9 @@ if __name__ == "__main__":
         # "Iceland", "Ireland", 
         # "Italy", "Kosovo", "Latvia", "Liechtenstein", "Lithuania", "Luxembourg", "Malta", "Moldova",
         # "Monaco", "Montenegro", 
-        "Netherlands", "North Macedonia", "Norway", "Poland", "Portugal", "Romania", "Russia",
-        "San Marino", "Serbia", "Slovakia", "Slovenia", "Spain", "Sweden", "Switzerland", "Ukraine", "United Kingdom",
+        # "Netherlands", "North Macedonia", "Norway", "Poland", "Portugal", "Romania", "Russia",
+        # "San Marino", "Serbia", "Slovakia", 
+        "Slovenia", "Spain", "Sweden", "Switzerland", "Ukraine", "United Kingdom",
         "Vatican City",
         # North America
         "Anguilla", "Antigua and Barbuda", "Aruba", "Bahamas", "Barbados", "Belize", "Bermuda", "Canada", "Cayman Islands",
