@@ -411,8 +411,8 @@ if __name__ == "__main__":
         #"Grenada", 
         #"Guadeloupe",
         #"Guatemala", "Haiti", 
-        "Honduras", "Jamaica", "Martinique", "Mexico", "Nicaragua", "Panama", "Puerto Rico",
-        "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Sint Maarten", "Trinidad and Tobago",
+        # "Honduras", "Jamaica", "Martinique", "Mexico", "Nicaragua", "Panama", "Puerto Rico",
+        # "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Sint Maarten", "Trinidad and Tobago",
         "United States", "U.S. Virgin Islands",
         # Oceania
         "Australia", "Fiji", "French Polynesia", "Guam", "New Caledonia", "New Zealand", "Northern Mariana Islands",
@@ -423,11 +423,20 @@ if __name__ == "__main__":
 
     # Process each country
     for country in countries_with_street_view_coverage:
-        process_country(
-            country_name=country,
-            tile_size_km=50,
-            sample_size_per_tile=5,
-            area_threshold_km2=10000,  # Adjust threshold as needed
-            tiles_per_km2=0.0001       # Adjust scaling factor as needed
-        )
+        if country == 'United States':
+            process_country(
+                country_name=country,
+                tile_size_km=50,
+                sample_size_per_tile=5,
+                area_threshold_km2=10000,  # Adjust threshold as needed
+                tiles_per_km2=0.000033       # Adjust scaling factor as needed
+            )
+        else:       
+            process_country(
+                country_name=country,
+                tile_size_km=50,
+                sample_size_per_tile=5,
+                area_threshold_km2=10000,  # Adjust threshold as needed
+                tiles_per_km2=0.0001       # Adjust scaling factor as needed
+            )
         #save_metadata(metadata)
