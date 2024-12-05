@@ -393,7 +393,8 @@ if __name__ == "__main__":
         # "Greece", "Hungary",
         # "Iceland", "Ireland", 
         # "Italy", "Kosovo", "Latvia", "Liechtenstein", "Lithuania", "Luxembourg", "Malta", "Moldova",
-        # "Monaco", "Montenegro", 
+        # "Monaco", 
+        "Montenegro", 
         # "Netherlands", "North Macedonia", "Norway", "Poland", "Portugal", "Romania", "Russia",
         # "San Marino", "Serbia", "Slovakia", 
         #"Slovenia", 
@@ -409,7 +410,7 @@ if __name__ == "__main__":
         #"Costa Rica", "Curaçao", "Dominica", "Dominican Republic", "El Salvador", 
         #"Greenland", 
         #"Grenada", 
-        #"Guadeloupe",
+        "Guadeloupe",
         #"Guatemala", "Haiti", 
         # "Honduras", "Jamaica", "Martinique", "Mexico", "Nicaragua", "Panama", "Puerto Rico",
         # "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Sint Maarten", "Trinidad and Tobago",
@@ -419,11 +420,16 @@ if __name__ == "__main__":
         # "Papua New Guinea", "Samoa",
         # # South America
         # "Argentina", "Bolivia", "Brazil", 
-        "Chile", "Colombia", "Ecuador", "Paraguay", "Peru", "Uruguay"
+        # "Chile", "Colombia", "Ecuador", "Paraguay", "Peru", "Uruguay"
         #middle east
-        "United Arab Emirates", "Qatar", "Lebanon", "Turkey", "Saudi Arabia", "Oman"
+        "United Arab Emirates", "Qatar", "Lebanon", 
+        # "Turkey", "Saudi Arabia", 
+        "Oman",
         #misc
-        'Curaçao', 'Kazakhstan', 'Kyrgyzstan', 'Bhutan', 'Eswatini', 'Tunisia', 'Bahrain', 'American Samoa'
+        'Curaçao', 
+        # 'Kazakhstan', 'Kyrgyzstan', 'Bhutan', 'Eswatini', 'Tunisia', 'Bahrain', 
+        'American Samoa',
+        'Madagascar'
     ]
 
     # Process each country
