@@ -25,7 +25,8 @@ class StreetViewDataset(Dataset):
             text=[country_text],
             return_tensors="pt",
             padding=True,
-            truncation=True
+            truncation=True,
+            max_length=77
         )
         
         input_ids = text_inputs["input_ids"][0]
