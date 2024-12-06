@@ -393,7 +393,8 @@ if __name__ == "__main__":
         # "Greece", "Hungary",
         # "Iceland", "Ireland", 
         # "Italy", "Kosovo", "Latvia", "Liechtenstein", "Lithuania", "Luxembourg", "Malta", "Moldova",
-        # "Monaco", "Montenegro", 
+        # "Monaco", 
+        "Montenegro", 
         # "Netherlands", "North Macedonia", "Norway", "Poland", "Portugal", "Romania", "Russia",
         # "San Marino", "Serbia", "Slovakia", 
         #"Slovenia", 
@@ -409,34 +410,44 @@ if __name__ == "__main__":
         #"Costa Rica", "Curaçao", "Dominica", "Dominican Republic", "El Salvador", 
         #"Greenland", 
         #"Grenada", 
-        #"Guadeloupe",
+        "Guadeloupe",
         #"Guatemala", "Haiti", 
         # "Honduras", "Jamaica", "Martinique", "Mexico", "Nicaragua", "Panama", "Puerto Rico",
         # "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Sint Maarten", "Trinidad and Tobago",
-        "United States", "U.S. Virgin Islands",
-        # Oceania
-        "Australia", "Fiji", "French Polynesia", "Guam", "New Caledonia", "New Zealand", "Northern Mariana Islands",
-        "Papua New Guinea", "Samoa",
-        # South America
-        "Argentina", "Bolivia", "Brazil", "Chile", "Colombia", "Ecuador", "Paraguay", "Peru", "Uruguay"
+        # "United States", "U.S. Virgin Islands",
+        # # Oceania
+        # "Australia", "Fiji", "French Polynesia", "Guam", "New Caledonia", "New Zealand", "Northern Mariana Islands",
+        # "Papua New Guinea", "Samoa",
+        # # South America
+        # "Argentina", "Bolivia", "Brazil", 
+        # "Chile", "Colombia", "Ecuador", "Paraguay", "Peru", "Uruguay"
+        #middle east
+        "United Arab Emirates", "Qatar", "Lebanon", 
+        # "Turkey", "Saudi Arabia", 
+        "Oman",
+        #misc
+        'Curaçao', 
+        # 'Kazakhstan', 'Kyrgyzstan', 'Bhutan', 'Eswatini', 'Tunisia', 'Bahrain', 
+        'American Samoa',
+        'Madagascar'
     ]
 
     # Process each country
     for country in countries_with_street_view_coverage:
-        if country == 'United States':
-            process_country(
-                country_name=country,
-                tile_size_km=50,
-                sample_size_per_tile=5,
-                area_threshold_km2=10000,  # Adjust threshold as needed
-                tiles_per_km2=0.000033       # Adjust scaling factor as needed
-            )
-        else:       
-            process_country(
-                country_name=country,
-                tile_size_km=50,
-                sample_size_per_tile=5,
-                area_threshold_km2=10000,  # Adjust threshold as needed
-                tiles_per_km2=0.0001       # Adjust scaling factor as needed
-            )
-        #save_metadata(metadata)
+        # if country == 'United States':
+        #     process_country(
+        #         country_name=country,
+        #         tile_size_km=50,
+        #         sample_size_per_tile=5,
+        #         area_threshold_km2=10000,  # Adjust threshold as needed
+        #         tiles_per_km2=0.000033       # Adjust scaling factor as needed
+        #     )
+        # else:       
+        process_country(
+            country_name=country,
+            tile_size_km=50,
+            sample_size_per_tile=5,
+            area_threshold_km2=10000,  # Adjust threshold as needed
+            tiles_per_km2=0.0001       # Adjust scaling factor as needed
+        )
+
