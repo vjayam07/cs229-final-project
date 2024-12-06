@@ -7,7 +7,7 @@ import argparse
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-from torch.optim import adamw
+from torch.optim import AdamW
 from torch.utils.data import DataLoader
 import pandas as pd
 
@@ -51,30 +51,37 @@ def train(**kwargs):
 
     model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
     processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
-    model = model.to('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = model.to(device)
 
     dataset = StreetViewDataset(metadata=metadata,
                                 processor=processor)
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
-    optimizer = adamw(model.parameters(), lr=1e-5)
+    optimizer = AdamW(model.parameters(), lr=1e-5)
 
     model.train()
     for epoch in range(NUM_EPOCHS):
         for batch in dataloader:
-            images, texts = batch
-            images = images.to('cuda' if torch.cuda.is_available() else 'cpu')
-            texts = texts.to('cuda' if torch.cuda.is_available() else 'cpu')
-            
-            outputs = model(pixel_values=images, input_ids=texts)
+            images, text_inputs = batch
+            images = images.to(device)
+            text_inputs = {k: v.to(device) for k, v in text_inputs.items()}
+
+            # forwardprop
+            outputs = model(
+                pixel_values=images, 
+                input_ids=text_inputs["input_ids"], 
+                attention_mask=text_inputs["attention_mask"]
+            )
+
             logits_per_image, logits_per_text = outputs.logits_per_image, outputs.logits_per_text
-            
+
+            # backprop
             loss = contrastive_loss(logits_per_image, logits_per_text)
             loss.backward()
-            
             optimizer.step()
             optimizer.zero_grad()
-            
+
         print(f"Epoch {epoch + 1}, Loss: {loss.item()}")
 
 if __name__=='__main__':
@@ -100,6 +107,6 @@ pretrained weights for SAM ViT model^
 
 3) Kapil will work on writing code for MLP and I will work on CLIP training and self attention.
 Both on training loop
-
+1`
 Kapil also work on the data processing loop.
 """

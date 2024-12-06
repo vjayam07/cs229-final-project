@@ -2,20 +2,10 @@
 Dataloader for Google StreetView images dataset. 
 """
 
-import json
-import clip
-from PIL import Image
 from torch.utils.data import Dataset
-
-import clip
+from PIL import Image
 
 class StreetViewDataset(Dataset):
-    '''
-    self.metadata: pandas df. 
-    self.processor: CLIP processor
-
-    Note the above initializations!
-    '''
     def __init__(self, metadata, processor):
         self.metadata = metadata
         self.processor = processor
@@ -30,6 +20,18 @@ class StreetViewDataset(Dataset):
         
         country = self.metadata.iloc[idx]['country']
         country_text = f"A Street View photo in {country}."
-        country_text = self.processor(text=country_text, return_tensors="pt", padding=True, truncation=True).input_ids[0]
 
-        return image, country_text
+        text_inputs = self.processor(
+            text=[country_text],
+            return_tensors="pt",
+            padding=True,
+            truncation=True
+        )
+        
+        input_ids = text_inputs["input_ids"][0]
+        attention_mask = text_inputs["attention_mask"][0]
+
+        return image, {
+            "input_ids": input_ids,
+            "attention_mask": attention_mask
+        }
