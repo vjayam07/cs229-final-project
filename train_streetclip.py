@@ -3,6 +3,7 @@ We train the CLIP model with StreetView images.
 '''
 import os
 import argparse
+import wandb
 
 import torch
 import torch.nn as nn
@@ -11,6 +12,7 @@ from torch.optim import AdamW
 from torch.utils.data import DataLoader
 import pandas as pd
 import matplotlib.pyplot as plt
+from huggingface_hub import HfApi
 
 import clip
 from transformers import CLIPProcessor, CLIPModel
@@ -23,6 +25,18 @@ from data_loaders.streetview import StreetViewDataset
 # ! Constants
 BATCH_SIZE=64
 NUM_EPOCHS=100
+LR=1e-5
+
+# wandb initialization
+wandb.init(
+    project="country_clip_training", 
+    name="run_1", 
+    config={
+        "learning_rate": 1e-5,
+        "batch_size": BATCH_SIZE,
+        "epochs": NUM_EPOCHS
+    }
+)
 
 
 def define_args(parser):
@@ -60,7 +74,7 @@ def train(**kwargs):
     print(dataset.__getitem__(2)[1]['input_ids'].size())
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
-    optimizer = AdamW(model.parameters(), lr=1e-5)
+    optimizer = AdamW(model.parameters(), lr=LR)
 
     model.train()
     for epoch in tqdm(range(NUM_EPOCHS)):
@@ -84,7 +98,14 @@ def train(**kwargs):
             optimizer.step()
             optimizer.zero_grad()
 
-        print(f"Epoch {epoch + 1}, Loss: {loss.item()}")
+        wandb.log({"loss": loss.item(), "epoch": epoch})
+
+    repo_id = "vjayam07/geoguessr-clip-model"
+    api = HfApi()
+    api.create_repo(repo_id=repo_id, exist_ok=True)
+
+    model.push_to_hub(repo_id)
+    processor.push_to_hub(repo_id)
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
