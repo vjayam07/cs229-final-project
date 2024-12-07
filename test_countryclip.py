@@ -31,9 +31,7 @@ def define_args(parser):
 
     return parser
 
-def init_model(**kwargs):
-    HF_dir = kwargs.get('HF_dir', None)
-
+def init_model(HF_dir):
     model = CLIPModel.from_pretrained(HF_dir)
     processor = CLIPProcessor.from_pretrained(HF_dir)
 
@@ -78,8 +76,9 @@ def test_loop(model, processor, test_dfs, countries):
 def test_fn(**kwargs):
     metadata = kwargs.get('metadata_file', None)
     dataset_name = kwargs.get('dataset_name', None)
+    HF_dir = kwargs.get('HF_dir', None)
 
-    model, processor = init_model()
+    model, processor = init_model(HF_dir)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
