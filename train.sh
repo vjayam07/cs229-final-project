@@ -6,7 +6,7 @@ export metadata=""
 
 export OUTPUT_DIR="kanji_model_50k"
 
-huggingface_cli login
+huggingface-cli login
 
 python3 train_streetclip.py \
     --dataset_name=$sample_dataset_name \
