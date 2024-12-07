@@ -38,9 +38,12 @@ def init_model(HF_dir):
 
     return model, processor
 
+def collate_fn(batch):
+    return batch[0][0], batch[0][1]
+
 def hf_test(model, processor, test_df, countries):
     test_dataset = StreetViewTestDataset(metadata=test_df, processor=processor)
-    test_dataloader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
+    test_dataloader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn)
 
     total_correct = 0
     total_samples = 0
