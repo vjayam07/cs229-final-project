@@ -43,14 +43,13 @@ def collate_fn(batch):
 
 def hf_test(model, processor, test_df, countries):
     test_dataset = StreetViewTestDataset(metadata=test_df, processor=processor)
-    test_dataloader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn)
+    test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False, collate_fn=collate_fn)
 
     total_correct = 0
     total_samples = 0
 
     model.eval()
     for images, truth_countries in test_dataloader:
-        images = images.to(device)
         choices = [f"A Street View photo in {country}." for country in countries]
         inputs = processor(text=choices, images=images, return_tensors="pt", padding=True)
         inputs = {k: v.to(device) for k, v in inputs.items()}
@@ -60,8 +59,10 @@ def hf_test(model, processor, test_df, countries):
             logits_per_image = outputs.logits_per_image
             probs = logits_per_image.softmax(dim=1)
 
-        preds = [countries[m] for m in torch.argmax(probs, dim=1)]
-        total_correct += sum(p == t for p, t in zip(preds, truth_countries))
+        preds = torch.argmax(probs, dim=1)
+        print(preds)
+        print(truth_countries)
+        total_correct += (truth_countries == preds)
         total_samples += len(images)
 
     accuracy = total_correct / total_samples
