@@ -5,6 +5,8 @@ Written by Viraj Jayam and Kapil Dheeriya, Stanford University, 3 Nov. 2024.
 """
 
 import requests
+import argparse
+import os
 
 import torch
 import pandas as pd
@@ -22,14 +24,23 @@ from data_loaders.streetview import StreetViewDataset
 NUM_TESTS = 10
 BATCH_SIZE = 32
 
-def init_model():
-    model = CLIPModel.from_pretrained("vjayam07/geoguessr-clip-model")
-    processor = CLIPProcessor.from_pretrained("vjayam07/geoguessr-clip-model")
+def define_args(parser):
+    parser.add_argument("--dataset_name", required=True, help="Path to the dataset folder.")
+    parser.add_argument("--metadata_file", required=True, help="Path to the metadata CSV file.")
+    parser.add_argument("--output_dir", required=True, help="Directory to save the output.")
+
+    return parser
+
+def init_model(**kwargs):
+    HF_dir = kwargs.get('HF_dir', None)
+
+    model = CLIPModel.from_pretrained(HF_dir)
+    processor = CLIPProcessor.from_pretrained(HF_dir)
 
     return model, processor
 
 def hf_test(model, processor, test_df, countries):
-    test_dataset = StreetViewDataset(metadata=test_df, processor=processor, return_country=True)
+    test_dataset = StreetViewDataset(metadata=test_df, processor=processor)
     test_dataloader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
     total_correct = 0
@@ -44,7 +55,7 @@ def hf_test(model, processor, test_df, countries):
 
         with torch.no_grad():
             outputs = model(**inputs)
-            logits_per_image = outputs.logits_per_image  # image-text similarity score
+            logits_per_image = outputs.logits_per_image
             probs = logits_per_image.softmax(dim=1)
 
         predictions = torch.argmax(probs, dim=1)
@@ -54,7 +65,7 @@ def hf_test(model, processor, test_df, countries):
     accuracy = total_correct / total_samples
     return accuracy
 
-def test(model, processor, test_dfs, countries):
+def test_loop(model, processor, test_dfs, countries):
     accuracies = []
 
     for test_df in test_dfs:
@@ -64,23 +75,33 @@ def test(model, processor, test_dfs, countries):
     mean_accuracy = sum(accuracies) / len(accuracies)
     return mean_accuracy, accuracies
 
-def main():
+def test_fn(**kwargs):
+    metadata = kwargs.get('metadata_file', None)
+    dataset_name = kwargs.get('dataset_name', None)
+
     model, processor = init_model()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
 
     metadata = pd.read_csv("full_data/street_view_metadata.csv")
+    metadata['filename'] = metadata['filename'].apply(lambda x: os.path.join(dataset_name, x))
 
     test_dfs = []
     for i in range(NUM_TESTS):
-        _, test = train_test_split(metadata, test_size=0.1, random_state=42 + i)  # Varying random state
+        _, test = train_test_split(metadata, test_size=0.1, random_state=42 + i)
         test_dfs.append(test)
 
     countries = metadata["country"].unique()
 
-    mean_accuracy, accuracies = test(model, processor, test_dfs, countries)
-
-    print(f"Mean Accuracy across {NUM_TESTS} tests: {mean_accuracy:.4f}")
+    mean_accuracy, accuracies = test_loop(model, processor, test_dfs, countries)
+    
+    print(f"Mean Accuracy across {NUM_TESTS} tests: {mean_accuracy}")
     for i, acc in enumerate(accuracies):
-        print(f"Accuracy for test split {i + 1}: {acc:.4f}")
+        print(f"Accuracy for test split {i + 1}: {acc}")
 
 if __name__ == '__main__': 
-    main()
+    parser = argparse.ArgumentParser()
+    parser = define_args(parser)
+
+    args = parser.parse_args()
+    test_fn(**vars(args))

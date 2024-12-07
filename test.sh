@@ -8,7 +8,7 @@ export HF_dir="vjayam07/geoguessr-clip-model"
 
 huggingface-cli login
 
-python3 train_streetclip.py \
+python3 test_countryclip.py \
     --dataset_name=$dataset_name \
     --metadata_file=$metadata \
     --HF_dir=$HF_dir
