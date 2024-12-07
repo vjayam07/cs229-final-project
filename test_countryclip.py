@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 from data_loaders.streetview import StreetViewTestDataset
 
 # ! Constants
-BATCH_SIZE = 32
+BATCH_SIZE = 1
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -43,7 +43,7 @@ def collate_fn(batch):
 
 def hf_test(model, processor, test_df, countries):
     test_dataset = StreetViewTestDataset(metadata=test_df, processor=processor)
-    test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False, collate_fn=collate_fn)
+    test_dataloader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn)
 
     total_correct = 0
     total_samples = 0
@@ -59,11 +59,10 @@ def hf_test(model, processor, test_df, countries):
             logits_per_image = outputs.logits_per_image
             probs = logits_per_image.softmax(dim=1)
 
-        preds = torch.argmax(probs, dim=1)
-        print(preds)
-        print(truth_countries)
+        pred_idx = torch.argmax(probs, dim=1)
+        preds = countries[pred_idx[0]]
         total_correct += (truth_countries == preds)
-        total_samples += len(images)
+        total_samples += BATCH_SIZE
 
     accuracy = total_correct / total_samples
     return accuracy
