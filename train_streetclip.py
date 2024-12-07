@@ -10,6 +10,7 @@ from torch.nn import functional as F
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 import pandas as pd
+import matplotlib.pyplot as plt
 
 import clip
 from transformers import CLIPProcessor, CLIPModel
@@ -20,7 +21,7 @@ from data_loaders.streetview import StreetViewDataset
 
 
 # ! Constants
-BATCH_SIZE = 16
+BATCH_SIZE=64
 NUM_EPOCHS=100
 
 
@@ -56,12 +57,13 @@ def train(**kwargs):
 
     dataset = StreetViewDataset(metadata=metadata,
                                 processor=processor)
+    print(dataset.__getitem__(2)[1]['input_ids'].size())
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
     optimizer = AdamW(model.parameters(), lr=1e-5)
 
     model.train()
-    for epoch in range(NUM_EPOCHS):
+    for epoch in tqdm(range(NUM_EPOCHS)):
         for batch in dataloader:
             images, text_inputs = batch
             images = images.to(device)

@@ -24,13 +24,13 @@ class StreetViewDataset(Dataset):
         text_inputs = self.processor(
             text=[country_text],
             return_tensors="pt",
-            padding=True,
+            padding="max_length",
             truncation=True,
             max_length=77
         )
         
-        input_ids = text_inputs["input_ids"][0]
-        attention_mask = text_inputs["attention_mask"][0]
+        input_ids = text_inputs["input_ids"].squeeze(0)
+        attention_mask = text_inputs["attention_mask"].squeeze(0)
 
         return image, {
             "input_ids": input_ids,
