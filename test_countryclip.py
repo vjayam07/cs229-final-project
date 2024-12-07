@@ -27,7 +27,7 @@ BATCH_SIZE = 32
 def define_args(parser):
     parser.add_argument("--dataset_name", required=True, help="Path to the dataset folder.")
     parser.add_argument("--metadata_file", required=True, help="Path to the metadata CSV file.")
-    parser.add_argument("--output_dir", required=True, help="Directory to save the output.")
+    parser.add_argument("--HF_dir", required=True, help="Directory to save the output.")
 
     return parser
 
