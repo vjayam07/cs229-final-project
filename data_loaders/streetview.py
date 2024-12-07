@@ -36,3 +36,19 @@ class StreetViewDataset(Dataset):
             "input_ids": input_ids,
             "attention_mask": attention_mask
         }
+
+class StreetViewTestDataset(Dataset):
+    def __init__(self, metadata, processor):
+        self.metadata = metadata
+        self.processor = processor
+
+    def __len__(self):
+        return len(self.metadata)
+
+    def __getitem__(self, idx):
+        image_path = self.metadata.iloc[idx]['filename']
+        image = Image.open(image_path).convert("RGB")
+        
+        country = self.metadata.iloc[idx]['country']
+
+        return image, country

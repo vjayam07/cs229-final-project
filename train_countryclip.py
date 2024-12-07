@@ -72,7 +72,7 @@ def train(**kwargs):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = model.to(device)
 
-    train_df, test_df = train_test_split(metadata, test_size=0.1, random_state=42)
+    train_df, _ = train_test_split(metadata, test_size=0.1, random_state=42)
 
     train_dataset = StreetViewDataset(metadata=train_df,
                                 processor=processor)

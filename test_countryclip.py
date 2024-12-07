@@ -18,11 +18,12 @@ from transformers import CLIPProcessor, CLIPModel
 from PIL import Image, ImageDraw, ImageFont
 import matplotlib.pyplot as plt
 
-from data_loaders.streetview import StreetViewDataset
+from data_loaders.streetview import StreetViewTestDataset
 
 # ! Constants
-NUM_TESTS = 10
 BATCH_SIZE = 32
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def define_args(parser):
     parser.add_argument("--dataset_name", required=True, help="Path to the dataset folder.")
@@ -38,40 +39,31 @@ def init_model(HF_dir):
     return model, processor
 
 def hf_test(model, processor, test_df, countries):
-    test_dataset = StreetViewDataset(metadata=test_df, processor=processor)
+    test_dataset = StreetViewTestDataset(metadata=test_df, processor=processor)
     test_dataloader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
     total_correct = 0
     total_samples = 0
 
-    for batch in test_dataloader:
-        images = batch["image"]
-        labels = batch["country"]
-
+    model.eval()
+    for images, truth_countries in test_dataloader:
+        images = images.to(device)
         choices = [f"A Street View photo in {country}." for country in countries]
         inputs = processor(text=choices, images=images, return_tensors="pt", padding=True)
+        inputs = {k: v.to(device) for k, v in inputs.items()}
 
         with torch.no_grad():
             outputs = model(**inputs)
             logits_per_image = outputs.logits_per_image
             probs = logits_per_image.softmax(dim=1)
 
-        predictions = torch.argmax(probs, dim=1)
-        total_correct += (predictions == labels).sum().item()
-        total_samples += len(labels)
+        preds = [countries[m] for m in torch.argmax(probs, dim=1)]
+        total_correct += sum(p == t for p, t in zip(preds, truth_countries))
+        total_samples += len(images)
 
     accuracy = total_correct / total_samples
     return accuracy
 
-def test_loop(model, processor, test_dfs, countries):
-    accuracies = []
-
-    for test_df in test_dfs:
-        accuracy = hf_test(model, processor, test_df, countries)
-        accuracies.append(accuracy)
-
-    mean_accuracy = sum(accuracies) / len(accuracies)
-    return mean_accuracy, accuracies
 
 def test_fn(**kwargs):
     metadata = kwargs.get('metadata_file', None)
@@ -79,26 +71,18 @@ def test_fn(**kwargs):
     HF_dir = kwargs.get('HF_dir', None)
 
     model, processor = init_model(HF_dir)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
     metadata = pd.read_csv("full_data/street_view_metadata.csv")
     metadata['filename'] = metadata['filename'].apply(lambda x: os.path.join(dataset_name, x))
 
-    test_dfs = []
-    for i in range(NUM_TESTS):
-        _, test = train_test_split(metadata, test_size=0.1, random_state=42 + i)
-        test_dfs.append(test)
-
+    _, test_df = train_test_split(metadata, test_size=0.1, random_state=42)
     countries = metadata["country"].unique()
-
-    mean_accuracy, accuracies = test_loop(model, processor, test_dfs, countries)
+    accuracy = hf_test(model, processor, test_df, countries)
     
-    print(f"Mean Accuracy across {NUM_TESTS} tests: {mean_accuracy}")
-    for i, acc in enumerate(accuracies):
-        print(f"Accuracy for test split {i + 1}: {acc}")
+    print(f"Test accuracy: {accuracy}")
 
-if __name__ == '__main__': 
+if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser = define_args(parser)
 
