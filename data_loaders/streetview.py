@@ -52,3 +52,22 @@ class StreetViewTestDataset(Dataset):
         country = self.metadata.iloc[idx]['country']
 
         return image, country
+    
+
+class ClassificationDataset(Dataset):
+    def __init__(self, metadata, processor):
+        self.metadata = metadata
+        self.processor = processor
+
+    def __len__(self):
+        return len(self.metadata)
+
+    def __getitem__(self, idx):
+        image_path = self.metadata.iloc[idx]['filename']
+        image = Image.open(image_path).convert("RGB")
+        image = self.processor(images=image, return_tensors="pt").pixel_values[0]
+        
+        country = self.metadata.iloc[idx]['country']
+        cluster = self.metadata.iloc[idx]['cluster']
+
+        return image, country, cluster
