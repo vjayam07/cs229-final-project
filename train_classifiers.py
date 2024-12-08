@@ -22,7 +22,7 @@ from data_loaders.streetview import ClassificationDataset
 
 # ! Constants
 BATCH_SIZE=1
-NUM_EPOCHS=15
+NUM_EPOCHS=5
 LR=1e-5
 
 
@@ -36,17 +36,50 @@ def define_args(parser):
 
     return parser
 
-class MLP(nn.Module):
-    def __init__(self, input_dim, hidden_dim, num_clusters):
+class MLPPlus(nn.Module):
+    def __init__(self, input_dim, hidden_dims, num_clusters, dropout_rate=0.5):
         super().__init__()
-        self.fc1 = nn.Linear(input_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, num_clusters)
+        
+        layers = []
+        in_dim = input_dim
+        for h_dim in range(hidden_dims):
+            layers.append(nn.Linear(in_dim, h_dim))
+            layers.append(nn.ReLU(inplace=True))
+            layers.append(nn.Dropout(p=dropout_rate))
+            in_dim = h_dim
+        
+        layers.append(nn.Linear(in_dim, num_clusters))
+        self.model = nn.Sequential(*layers)
 
     def forward(self, x):
-        x = torch.relu(self.fc1(x))
-        x = self.fc2(x)
+        return self.model(x)
+
+class MLP(nn.Module):
+    def __init__(self, input_dim, hidden_dim, num_clusters):
+        """
+        Args:
+            input_dim (int): Number of input features.
+            hidden_dim (int): Number of units in each hidden layer.
+            num_clusters (int): Number of output classes.
+        """
+        super().__init__()
+        
+        self.fc1 = nn.Linear(input_dim, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+        self.fc3 = nn.Linear(hidden_dim, num_clusters)
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        # x should be of shape [batch_size, input_dim]
+        x = self.relu(self.fc1(x))
+        x = self.relu(self.fc2(x))
+        x = self.fc3(x)
         return x
 
+
+def reset_weights(m):
+    if isinstance(m, nn.Linear):
+        m.reset_parameters()
 
 '''
 # ! Make sure init_hf_classifiers has already initialized the huggingface repo for each country.
@@ -66,20 +99,20 @@ def id_multi_clusters(cluster_centers):
     return final_dict
 
 
-def train_country(country, num_clusters, metadata):
-    if country == "United_States":
+def train_country(base_country, num_clusters, metadata):
+    if base_country == "United_States":
         wandb.init(
             project="country_clip_training", 
             name=f"classifier_run_{datetime.datetime.now()}",
             config={
                 "learning_rate": 1e-6,
-                "batch_size": 1,
-                "epochs": 10
+                "batch_size": BATCH_SIZE,
+                "epochs": 5
             }
         )
-    country_metadata = metadata[metadata['country'] == country]
+    country_metadata = metadata[metadata['country'] == base_country]
 
-    model = MLP(input_dim=100, hidden_dim=100, num_clusters=num_clusters)
+    model = MLP(input_dim=512, hidden_dim=128, num_clusters=num_clusters)
     clip_model = CLIPModel.from_pretrained("vjayam07/geoguessr-clip-model")
     processor = CLIPProcessor.from_pretrained("vjayam07/geoguessr-clip-model")
     clip_model = clip_model.to(device)
@@ -90,42 +123,44 @@ def train_country(country, num_clusters, metadata):
     train_dataset = ClassificationDataset(metadata=train_df,
                                           clip_model=clip_model,
                                           processor=processor)
-    train_dataloader = DataLoader(train_dataset, batch_size=1, shuffle=True)
-
-    image = train_dataset.__getitem__(1)[0]
-    image.to(device)
-    image_features = clip_model.get_image_features(pixel_values=image)
-    print(image_features.size())
+    train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
 
     optimizer = AdamW(params=model.parameters(), 
                       lr=LR,
                       betas=(0.9, 0.98),
                       weight_decay=1e-4)
+    loss_fn = nn.CrossEntropyLoss().to(device)
 
+    repo_id = f"vjayam07/{base_country}_classifier"
+
+    model.apply(reset_weights)
     model.train()
     for epoch in range(NUM_EPOCHS):
         for batch in tqdm(train_dataloader, desc=f"Epoch #{epoch} Training"):
-            images, country, _ = batch
-            images = images.to(device)
+            images, _, truth_cluster = batch
+            truth_cluster = truth_cluster.to(device)
+            images = images.cuda()
+            image_features = clip_model.get_image_features(pixel_values=images.squeeze(0))
 
             # forwardprop
-            outputs = MLP(images)
-            logits_per_image, logits_per_text = outputs.logits_per_image, outputs.logits_per_text
+            outputs = model(image_features)
 
             # backprop
-            loss = torch.binary_cross_entropy_with_logits(logits_per_image, logits_per_text)
+            loss = loss_fn(outputs, truth_cluster)
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
-        if country == "United_States":
+        if base_country == "United_States":
             wandb.log({"loss": loss.item(), "epoch": epoch})
-
-    repo_id = "vjayam07/{country}_classifier"
+    
     api = HfApi()
-    api.create_repo(repo_id=repo_id, exist_ok=True)
-
-    model.push_to_hub(repo_id)
-    processor.push_to_hub(repo_id)
+    torch.save(model.state_dict(), "mlp_model.pth")
+    api.upload_file(
+        path_or_fileobj="mlp_model.pth",
+        path_in_repo="mlp_model.pth",
+        repo_id=repo_id,
+        repo_type="model"
+    )
 
 def train(**kwargs):
     metadata = kwargs.get('metadata_file', None)

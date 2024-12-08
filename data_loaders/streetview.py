@@ -6,7 +6,6 @@ import torch
 from torch.utils.data import Dataset
 from PIL import Image
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class StreetViewDataset(Dataset):
     def __init__(self, metadata, processor):
@@ -55,7 +54,26 @@ class StreetViewTestDataset(Dataset):
         country = self.metadata.iloc[idx]['country']
 
         return image, country
+
+class FinalTestDataset(Dataset):
+    def __init__(self, metadata, processor):
+        self.metadata = metadata
+        self.processor = processor
+
+    def __len__(self):
+        return len(self.metadata)
+
+    def __getitem__(self, idx):
+        image_path = self.metadata.iloc[idx]['filename']
+        image = Image.open(image_path).convert("RGB")
+        image = self.processor(images=image, return_tensors="pt")
+        image = image['pixel_values']
+        
+        coords = [self.metadata.iloc[idx]['Latitude'], self.metadata.iloc[idx]['Longitude']]
+
+        return image, coords
     
+
 
 class ClassificationDataset(Dataset):
     def __init__(self, metadata, clip_model, processor):
