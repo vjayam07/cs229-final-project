@@ -81,14 +81,15 @@ def train_country(country, num_clusters, metadata):
 
     model = MLP(input_dim=100, hidden_dim=100, num_clusters=num_clusters)
     clip_model = CLIPModel.from_pretrained("vjayam07/geoguessr-clip-model")
-    # processor = CLIPProcessor.from_pretrained("vjayam07/geoguessr-clip-model")
+    processor = CLIPProcessor.from_pretrained("vjayam07/geoguessr-clip-model")
     clip_model = clip_model.to(device)
     model = model.to(device)
 
     train_df, _ = train_test_split(country_metadata, test_size=0.1, random_state=42)
 
     train_dataset = ClassificationDataset(metadata=train_df,
-                                          clip_model=clip_model)
+                                          clip_model=clip_model,
+                                          processor=processor)
     train_dataloader = DataLoader(train_dataset, batch_size=1, shuffle=True)
 
     print(train_dataset.__getitem__(1)['image'].size())
