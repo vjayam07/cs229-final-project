@@ -2,8 +2,11 @@
 Dataloader for Google StreetView images dataset. 
 """
 
+import torch
 from torch.utils.data import Dataset
 from PIL import Image
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class StreetViewDataset(Dataset):
     def __init__(self, metadata, processor):
@@ -69,6 +72,7 @@ class ClassificationDataset(Dataset):
         image = self.processor(images=image, return_tensors="pt")
 
         pixel_values = image['pixel_values']
+        pixel_values.to(device)
         image_features = self.clip_model.get_image_features(pixel_values=pixel_values)
 
         country = self.metadata.iloc[idx]['country']
