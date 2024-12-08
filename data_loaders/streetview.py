@@ -68,7 +68,7 @@ class ClassificationDataset(Dataset):
         image = Image.open(image_path).convert("RGB")
         image = self.processor(images=image, return_tensors="pt")
 
-        pixel_values = image['pixel_values'].squeeze(0)
+        pixel_values = image['pixel_values']
         image_features = self.clip_model.get_image_features(pixel_values=pixel_values)
 
         country = self.metadata.iloc[idx]['country']
