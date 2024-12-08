@@ -58,6 +58,7 @@ class ClassificationDataset(Dataset):
     def __init__(self, metadata, clip_model, processor):
         self.metadata = metadata
         self.clip_model = clip_model
+        self.processor = processor
 
     def __len__(self):
         return len(self.metadata)
