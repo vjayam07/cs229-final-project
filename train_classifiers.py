@@ -92,7 +92,10 @@ def train_country(country, num_clusters, metadata):
                                           processor=processor)
     train_dataloader = DataLoader(train_dataset, batch_size=1, shuffle=True)
 
-    print(train_dataset.__getitem__(1)['image'].size())
+    image = train_dataset.__getitem__(1)[0]
+    image.to(device)
+    image_features = clip_model.get_image_features(pixel_values=image)
+    print(image_features.size())
 
     optimizer = AdamW(params=model.parameters(), 
                       lr=LR,

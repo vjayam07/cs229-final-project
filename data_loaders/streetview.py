@@ -71,11 +71,9 @@ class ClassificationDataset(Dataset):
         image = Image.open(image_path).convert("RGB")
         image = self.processor(images=image, return_tensors="pt")
 
-        pixel_values = image['pixel_values']
-        pixel_values.to(device)
-        image_features = self.clip_model.get_image_features(pixel_values=pixel_values)
+        image = image['pixel_values']
 
         country = self.metadata.iloc[idx]['country']
         cluster = self.metadata.iloc[idx]['cluster']
 
-        return image_features, country, cluster
+        return image, country, cluster
