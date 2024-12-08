@@ -66,12 +66,12 @@ class FinalTestDataset(Dataset):
     def __getitem__(self, idx):
         image_path = self.metadata.iloc[idx]['filename']
         image = Image.open(image_path).convert("RGB")
-        image = self.processor(images=image, return_tensors="pt")
-        image = image['pixel_values']
+        image_proc = self.processor(images=image, return_tensors="pt")
+        image_proc = image_proc['pixel_values']
         
         coords = [self.metadata.iloc[idx]['Latitude'], self.metadata.iloc[idx]['Longitude']]
 
-        return image, coords
+        return image, image_proc, coords
     
 
 

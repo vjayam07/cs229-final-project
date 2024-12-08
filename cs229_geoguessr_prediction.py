@@ -20,6 +20,7 @@ from transformers import CLIPProcessor, CLIPModel
 from data_loaders.streetview import FinalTestDataset
 
 from huggingface_hub import hf_hub_download
+from tqdm import tqdm
 
 # ! Constants
 BATCH_SIZE = 1
@@ -75,14 +76,13 @@ def haversine(lat1, lon1, lat2, lon2):
     return rad * c
 
 def collate_fn(batch):
-    return batch[0][0], batch[0][1]
+    return batch[0][0], batch[0][1], batch[0][2]
 
 def reset_weights(m):
     if isinstance(m, nn.Linear):
         m.reset_parameters()
 
 def id_multi_clusters(cluster_centers):
-    cluster_centers = pd.read_csv(cluster_centers)
     cluster_counts = cluster_centers.groupby('Country')['Cluster'].nunique()
 
     countries_multiple_clusters = set(cluster_counts[cluster_counts > 1].index.tolist())
@@ -100,6 +100,64 @@ def id_multi_clusters(cluster_centers):
 
 ##########
 
+# def full_test(model, processor, test_df, countries, countries_num_clusts, cluster_metadata):
+#     test_dataset = FinalTestDataset(metadata=test_df, processor=processor)
+#     test_dataloader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn)
+
+#     final_dict = {
+#         'city': 0, # 25km
+#         'region': 0, # 200km
+#         'country': 0, # 750km
+#         'continent': 0 # 2500km
+#     }
+
+#     data_len = test_dataset.__len__()
+
+#     model.eval()
+#     for images, proc_images, ground_truth_coords in tqdm(test_dataloader):
+#         choices = [f"A Street View photo in {country}." for country in countries]
+#         inputs = processor(text=choices, images=images, return_tensors="pt", padding=True)
+#         inputs = {k: v.to(device) for k, v in inputs.items()}
+
+#         with torch.no_grad():
+#             outputs = model(**inputs)
+#             logits_per_image = outputs.logits_per_image
+#             probs = logits_per_image.softmax(dim=1)
+
+#         pred_idx = torch.argmax(probs, dim=1)
+#         preds = countries[pred_idx[0]]
+        
+#         model_path = hf_hub_download(repo_id=f"vjayam07/{preds}_classifier", filename="mlp_model.pth")
+#         num_clusters = countries_num_clusts[preds]
+#         mlp = MLP(input_size=512, hidden_size=128, output_size=num_clusters)
+#         mlp.load_state_dict(torch.load(model_path))
+#         mlp.eval()
+
+#         proc_images = proc_images.cuda()
+#         image_features = model.get_image_features(pixel_values=proc_images.squeeze(0))
+
+#         outputs = mlp(image_features)
+#         pred_cluster = torch.argmax(outputs, dim=1)
+#         coordinate_prediction = cluster_metadata.loc[(cluster_metadata['Country'] == preds) & (cluster_metadata['Cluster'] == pred_cluster)]
+
+#         distance = haversine(ground_truth_coords[0],
+#                              ground_truth_coords[1],
+#                              coordinate_prediction['Cluster_Center_Latitude'],
+#                              coordinate_prediction['Cluster_Center_Longitude'])
+
+#         if distance <= 25:
+#             final_dict['city'] += 1 / data_len
+#         if distance > 25 and distance <= 200:
+#             final_dict['region'] += 1 / data_len
+#         if distance > 200 and distance <= 750:
+#             final_dict['country'] += 1 / data_len
+#         if distance > 750 and distance <= 2500:
+#             final_dict['continent'] += 1 / data_len
+
+
+
+#     return final_dict
+
 def full_test(model, processor, test_df, countries, countries_num_clusts, cluster_metadata):
     test_dataset = FinalTestDataset(metadata=test_df, processor=processor)
     test_dataloader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn)
@@ -114,7 +172,7 @@ def full_test(model, processor, test_df, countries, countries_num_clusts, cluste
     data_len = test_dataset.__len__()
 
     model.eval()
-    for images, ground_truth_coords in test_dataloader:
+    for images, images_proc, ground_truth_coords in tqdm(test_dataloader):
         choices = [f"A Street View photo in {country}." for country in countries]
         inputs = processor(text=choices, images=images, return_tensors="pt", padding=True)
         inputs = {k: v.to(device) for k, v in inputs.items()}
@@ -126,33 +184,43 @@ def full_test(model, processor, test_df, countries, countries_num_clusts, cluste
 
         pred_idx = torch.argmax(probs, dim=1)
         preds = countries[pred_idx[0]]
-        
-        model_path = hf_hub_download(repo_id=f"vjayam07/{preds}_classifier", filename="mlp_model.pth")
-        num_clusters = countries_num_clusts[preds]
-        mlp = MLP(input_size=512, hidden_size=128, output_size=num_clusters)
-        mlp.load_state_dict(torch.load(model_path))
-        mlp.eval()
 
-        images = images.cuda()
-        image_features = model.get_image_features(pixel_values=images.squeeze(0))
+        all_model_countries = set(countries_num_clusts.keys())
+        needs_model = (preds in all_model_countries)
+        if not needs_model:
+            coordinate_prediction = cluster_metadata.loc[(cluster_metadata['Country'] == preds) & (cluster_metadata['Cluster'] == 0)]
+            lat = coordinate_prediction['Cluster_Center_Latitude']
+            long = coordinate_prediction['Cluster_Center_Latitude']
+        else: 
+            model_path = hf_hub_download(repo_id=f"vjayam07/{preds}_classifier", filename="mlp_model.pth")
+            num_clusters = countries_num_clusts[preds]
+            mlp = MLP(input_dim=512, hidden_dim=128, num_clusters=num_clusters)
+            mlp.load_state_dict(torch.load(model_path))
+            mlp.eval()
+            
+            mlp.to(device)
+            images_proc = images_proc.cuda()
+            image_features = model.get_image_features(pixel_values=images_proc)
 
-        outputs = mlp(image_features)
-        pred_cluster = torch.argmax(outputs, dim=1)
-        coordinate_prediction = cluster_metadata.loc[(cluster_metadata['Country'] == preds) & (cluster_metadata['Cluster'] == pred_cluster)]
+            outputs = mlp(image_features)
+            pred_cluster = torch.argmax(outputs, dim=1)
+            coordinate_prediction = cluster_metadata.loc[(cluster_metadata['Country'] == preds) & (cluster_metadata['Cluster'] == pred_cluster.item())]
+            lat = coordinate_prediction['Cluster_Center_Latitude']
+            long = coordinate_prediction['Cluster_Center_Latitude']
 
         distance = haversine(ground_truth_coords[0],
                              ground_truth_coords[1],
-                             coordinate_prediction['Cluster_Center_Latitude'],
-                             coordinate_prediction['Cluster_Center_Longitude'])
+                             lat,
+                             long)
 
         if distance <= 25:
-            city += 1 / data_len
+            final_dict['city'] += 1 / data_len
         if distance > 25 and distance <= 200:
-            region += 1 / data_len
+            final_dict['region'] += 1 / data_len
         if distance > 200 and distance <= 750:
-            country += 1 / data_len
+            final_dict['country'] += 1 / data_len
         if distance > 750 and distance <= 2500:
-            country += 1 / data_len
+            final_dict['continent'] += 1 / data_len
 
 
 
@@ -171,12 +239,13 @@ def test_fn(**kwargs):
     model, processor = init_model(HF_dir)
     model.to(device)
 
-    metadata = pd.read_csv("full_data/street_view_metadata.csv")
+    metadata = pd.read_csv(metadata)
+    old_metadata = pd.read_csv("full_data/street_view_metadata.csv")
     metadata['filename'] = metadata['filename'].apply(lambda x: os.path.join(dataset_name, x))
 
     # _, test_df = train_test_split(metadata, test_size=0.1, random_state=42)
 
-    countries = metadata["country"].unique()
+    countries = old_metadata["country"].unique()
     final_dict = full_test(model, processor, metadata, countries, countries_num_clusts, clusters_metadata)
     print(final_dict)
 

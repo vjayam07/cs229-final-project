@@ -10,9 +10,8 @@ export clip_dir="vjayam07/geoguessr-clip-model"
 
 huggingface-cli login
 
-python3 train_classifiers.py \
+python3 cs229_geoguessr_prediction.py \
     --dataset_name=$dataset_name \
     --metadata_file=$metadata \
     --cluster_centers=$cluster_centers_metadata \
-    --clip_dir=$clip_dir
-    --output_dir=""
+    --clip_dir=$clip_dir 
