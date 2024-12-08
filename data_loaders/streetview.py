@@ -55,9 +55,9 @@ class StreetViewTestDataset(Dataset):
     
 
 class ClassificationDataset(Dataset):
-    def __init__(self, metadata, processor):
+    def __init__(self, metadata, clip_model):
         self.metadata = metadata
-        self.processor = processor
+        self.clip_model = clip_model
 
     def __len__(self):
         return len(self.metadata)
@@ -65,7 +65,7 @@ class ClassificationDataset(Dataset):
     def __getitem__(self, idx):
         image_path = self.metadata.iloc[idx]['filename']
         image = Image.open(image_path).convert("RGB")
-        image = self.processor(images=image, return_tensors="pt").pixel_values[0]
+        image = self.clip_model.get_image_features(pixel_values=image)
         
         country = self.metadata.iloc[idx]['country']
         cluster = self.metadata.iloc[idx]['cluster']
