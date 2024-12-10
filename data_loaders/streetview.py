@@ -65,13 +65,16 @@ class FinalTestDataset(Dataset):
 
     def __getitem__(self, idx):
         image_path = self.metadata.iloc[idx]['filename']
+        
+        gt_country = self.metadata.iloc[idx]['country']
+
         image = Image.open(image_path).convert("RGB")
         image_proc = self.processor(images=image, return_tensors="pt")
         image_proc = image_proc['pixel_values']
         
         coords = [self.metadata.iloc[idx]['Latitude'], self.metadata.iloc[idx]['Longitude']]
 
-        return image, image_proc, coords
+        return image, image_proc, coords, gt_country
     
 
 

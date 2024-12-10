@@ -63,20 +63,30 @@ def init_model(HF_dir):
     return model, processor
 
 # ! two coordinates to kilometers
+import math
+
 def haversine(lat1, lon1, lat2, lon2):
-    dLat = (lat2 - lat1) * math.pi / 180.0
-    dLon = (lon2 - lon1) * math.pi / 180.0
- 
-    lat1 = (lat1) * math.pi / 180.0
-    lat2 = (lat2) * math.pi / 180.0
- 
-    a = (pow(math.sin(dLat / 2), 2) + pow(math.sin(dLon / 2), 2) * math.cos(lat1) * math.cos(lat2))
-    rad = 6371
+    # Convert degrees to radians
+    rLat1 = math.radians(lat1)
+    rLon1 = math.radians(lon1)
+    rLat2 = math.radians(lat2)
+    rLon2 = math.radians(lon2)
+    
+    # Differences
+    dLat = rLat2 - rLat1
+    dLon = rLon2 - rLon1
+    
+    # Haversine formula
+    a = (math.sin(dLat / 2) ** 2) + math.cos(rLat1) * math.cos(rLat2) * (math.sin(dLon / 2) ** 2)
     c = 2 * math.asin(math.sqrt(a))
-    return rad * c
+    
+    # Radius of Earth in kilometers
+    r = 6371
+    return r * c
+
 
 def collate_fn(batch):
-    return batch[0][0], batch[0][1], batch[0][2]
+    return batch[0][0], batch[0][1], batch[0][2], batch[0][3]
 
 def reset_weights(m):
     if isinstance(m, nn.Linear):
@@ -169,10 +179,11 @@ def full_test(model, processor, test_df, countries, countries_num_clusts, cluste
         'continent': 0 # 2500km
     }
 
-    data_len = test_dataset.__len__()
+    total_samples = 0
+    dists = 0
 
     model.eval()
-    for images, images_proc, ground_truth_coords in tqdm(test_dataloader):
+    for images, images_proc, ground_truth_coords, gt_country in tqdm(test_dataloader):
         choices = [f"A Street View photo in {country}." for country in countries]
         inputs = processor(text=choices, images=images, return_tensors="pt", padding=True)
         inputs = {k: v.to(device) for k, v in inputs.items()}
@@ -183,14 +194,14 @@ def full_test(model, processor, test_df, countries, countries_num_clusts, cluste
             probs = logits_per_image.softmax(dim=1)
 
         pred_idx = torch.argmax(probs, dim=1)
-        preds = countries[pred_idx[0]]
+        preds = countries[pred_idx.item()]
 
         all_model_countries = set(countries_num_clusts.keys())
         needs_model = (preds in all_model_countries)
         if not needs_model:
             coordinate_prediction = cluster_metadata.loc[(cluster_metadata['Country'] == preds) & (cluster_metadata['Cluster'] == 0)]
             lat = coordinate_prediction['Cluster_Center_Latitude']
-            long = coordinate_prediction['Cluster_Center_Latitude']
+            long = coordinate_prediction['Cluster_Center_Longitude']
         else: 
             model_path = hf_hub_download(repo_id=f"vjayam07/{preds}_classifier", filename="mlp_model.pth")
             num_clusters = countries_num_clusts[preds]
@@ -205,8 +216,8 @@ def full_test(model, processor, test_df, countries, countries_num_clusts, cluste
             outputs = mlp(image_features)
             pred_cluster = torch.argmax(outputs, dim=1)
             coordinate_prediction = cluster_metadata.loc[(cluster_metadata['Country'] == preds) & (cluster_metadata['Cluster'] == pred_cluster.item())]
-            lat = coordinate_prediction['Cluster_Center_Latitude']
-            long = coordinate_prediction['Cluster_Center_Latitude']
+            lat = coordinate_prediction['Cluster_Center_Latitude'].iloc[0]
+            long = coordinate_prediction['Cluster_Center_Longitude'].iloc[0]
 
         distance = haversine(ground_truth_coords[0],
                              ground_truth_coords[1],
@@ -214,16 +225,21 @@ def full_test(model, processor, test_df, countries, countries_num_clusts, cluste
                              long)
 
         if distance <= 25:
-            final_dict['city'] += 1 / data_len
+            final_dict['city'] += 1
         if distance > 25 and distance <= 200:
-            final_dict['region'] += 1 / data_len
+            final_dict['region'] += 1
         if distance > 200 and distance <= 750:
-            final_dict['country'] += 1 / data_len
+            final_dict['country'] += 1
         if distance > 750 and distance <= 2500:
-            final_dict['continent'] += 1 / data_len
+            final_dict['continent'] += 1
 
+        total_samples += 1
+        dists += 4999.91*math.pow(0.998036, distance)
 
-
+    for key in final_dict.keys():
+        final_dict[key] = final_dict[key] / total_samples
+    
+    print(f"AVERAGE GeoGuessr Score: {dists / total_samples}")
     return final_dict
 
 
@@ -243,10 +259,10 @@ def test_fn(**kwargs):
     old_metadata = pd.read_csv("full_data/street_view_metadata.csv")
     metadata['filename'] = metadata['filename'].apply(lambda x: os.path.join(dataset_name, x))
 
-    # _, test_df = train_test_split(metadata, test_size=0.1, random_state=42)
+    _, test_df = train_test_split(metadata, test_size=0.1, random_state=42)
 
     countries = old_metadata["country"].unique()
-    final_dict = full_test(model, processor, metadata, countries, countries_num_clusts, clusters_metadata)
+    final_dict = full_test(model, processor, test_df, countries, countries_num_clusts, clusters_metadata)
     print(final_dict)
 
 if __name__ == '__main__':
