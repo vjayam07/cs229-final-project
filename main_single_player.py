@@ -67,8 +67,9 @@ def define_args(parser):
     return parser
 
 def init_model(HF_dir):
-    model = CLIPModel.from_pretrained(HF_dir)
-    processor = CLIPProcessor.from_pretrained(HF_dir)
+    hash_id = '8222552f78548103bcb07f0fd02abae172b375b0'
+    model = CLIPModel.from_pretrained(HF_dir, revision=hash_id)
+    processor = CLIPProcessor.from_pretrained(HF_dir, revision=hash_id)
 
     return model, processor
 

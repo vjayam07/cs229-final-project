@@ -197,7 +197,10 @@ def full_test(model, processor, test_df, countries, countries_num_clusts, cluste
         preds = countries[pred_idx.item()]
 
         all_model_countries = set(countries_num_clusts.keys())
-        needs_model = (preds in all_model_countries)
+        
+        all_model_countries.remove("Lithuania")
+        
+        needs_model = (preds in all_model_countries and all_model_countries[preds] > 1)
         if not needs_model:
             coordinate_prediction = cluster_metadata.loc[(cluster_metadata['Country'] == preds) & (cluster_metadata['Cluster'] == 0)]
             lat = coordinate_prediction['Cluster_Center_Latitude']
